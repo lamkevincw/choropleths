@@ -2,7 +2,7 @@ var ndviValues;
 
 var map;
 
-fetch('./static/ndviValues.json')
+fetch('https://raw.githubusercontent.com/lamkevincw/choropleths/main/static/ndviValues.json')
     .then((response) => response.json())
     .then((data) => {
         var prop = data.map(function (item) { return JSON.parse(item["prop"]) });
