@@ -1,37 +1,25 @@
-/*
- * Create form to request access token from Google's OAuth 2.0 server.
- */
-function oauthSignIn() {
-    // Google's OAuth 2.0 endpoint for requesting an access token
-    var oauth2Endpoint = 'https://accounts.google.com/o/oauth2/v2/auth';
+var ndviValues;
 
-    // Create <form> element to submit parameters to OAuth 2.0 endpoint.
-    var form = document.createElement('form');
-    form.setAttribute('method', 'GET'); // Send as a GET request.
-    form.setAttribute('action', oauth2Endpoint);
+var map;
 
-    // Parameters to pass to OAuth 2.0 endpoint.
-    var params = {
-        'client_id': '366896615838-n720q9ueppqmm0lib22ushm1fecltlvl.apps.googleusercontent.com',
-        'redirect_uri': 'YOUR_REDIRECT_URI',
-        'response_type': 'token',
-        'scope': 'https://www.googleapis.com/auth/drive.metadata.readonly',
-        'include_granted_scopes': 'true',
-        'state': 'pass-through value'
-    };
+fetch('./static/ndviValues.json')
+    .then((response) => response.json())
+    .then((data) => {
+        var prop = data.map(function (item) { return JSON.parse(item["prop"]) });
+        ndviValues = prop.map(function (value) { return { "latlng": value[0].reverse(), "mNDVI": value[1][0], "cNDVI": value[1][1] } });
+        console.log(ndviValues)
 
-    // Add form parameters as hidden input values.
-    for (var p in params) {
-        var input = document.createElement('input');
-        input.setAttribute('type', 'hidden');
-        input.setAttribute('name', p);
-        input.setAttribute('value', params[p]);
-        form.appendChild(input);
-    }
+        initialize();
+    });
 
-    // Add form to page and submit it to open the OAuth 2.0 endpoint.
-    document.body.appendChild(form);
-    form.submit();
+function initialize() {
+    initializeMap();
 }
 
-oauthSignIn();
+function initializeMap() {
+    map = L.map('map').setView(ndviValues[0].latlng, 9);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
+}
