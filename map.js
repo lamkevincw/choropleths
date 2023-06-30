@@ -1,13 +1,17 @@
 var ndviValues;
 var dataSubset;
 
-var dataSummary = { "mean": 0, "stdDev": 0 }
+var dataSummary = { "mean": 0, "stdDev": 0 };
 
+var defaultView = { "latlng": [], "zoom": 10 };
 var mNDVIRange = [Number.MAX_SAFE_INTEGER, Number.MIN_SAFE_INTEGER];
 var cNDVIRange = [Number.MAX_SAFE_INTEGER, Number.MIN_SAFE_INTEGER];
 
 var map;
-var mNDVIPoints;
+var mNDVIPoints = [];
+var cNDVIPoints = [];
+
+var toggleButtonValue = "mNDVI";
 
 const recWidth = 0.003;
 const recHeight = 0.002;
@@ -26,12 +30,12 @@ function initialize() {
     processData();
     initializeMap();
 
-    plotNDVI();
+    plotNDVI(toggleButtonValue);
 }
 
 function initializeMap() {
     // Create leaflet map
-    map = L.map('map').setView(ndviValues[0].latlng, 9);
+    map = L.map('map').setView(defaultView.latlng, defaultView.zoom);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -98,27 +102,68 @@ function processData() {
     dataSummary.stdDev = Math.sqrt(dataSummary.stdDev);
     console.log(dataSummary)
 
+    // Set default view
+    defaultView.latlng = ndviValues[0].latlng;
+    defaultView.zoom = 10;
 }
 
-function plotNDVI() {
-    mNDVIPoints = dataSubset.map((point, index) => {
-        return L.rectangle([
-            [point.latlng[0] - recHeight, point.latlng[1] - recWidth],
-            [point.latlng[0] + recHeight, point.latlng[1] + recWidth]
-        ], {
-            color: colorGradient((point.mNDVI - mNDVIRange[0]) / (mNDVIRange[1] - mNDVIRange[0]),
-                { red: 217, green: 83, blue: 79 },
-                { red: 240, green: 173, blue: 78 },
-                { red: 92, green: 184, blue: 91 })
-        }).addTo(map);
-        // return L.circle(point.latlng, {
-        //     color: colorGradient((point.mNDVI - mNDVIRange[0]) / (mNDVIRange[1] - mNDVIRange[0]),
-        //         { red: 217, green: 83, blue: 79 },
-        //         { red: 240, green: 173, blue: 78 },
-        //         { red: 92, green: 184, blue: 91 }),
-        //     radius: 150
-        // }).addTo(map);
-    });
+function plotNDVI(ndvi) {
+    if (ndvi === "mNDVI") {
+        mNDVIPoints = dataSubset.map((point, index) => {
+            return L.rectangle([
+                [point.latlng[0] - recHeight, point.latlng[1] - recWidth],
+                [point.latlng[0] + recHeight, point.latlng[1] + recWidth]
+            ], {
+                color: colorGradient((point.mNDVI - mNDVIRange[0]) / (mNDVIRange[1] - mNDVIRange[0]),
+                    { red: 217, green: 83, blue: 79 },
+                    { red: 240, green: 173, blue: 78 },
+                    { red: 92, green: 184, blue: 91 })
+            }).addTo(map);
+            // return L.circle(point.latlng, {
+            //     color: colorGradient((point.mNDVI - mNDVIRange[0]) / (mNDVIRange[1] - mNDVIRange[0]),
+            //         { red: 217, green: 83, blue: 79 },
+            //         { red: 240, green: 173, blue: 78 },
+            //         { red: 92, green: 184, blue: 91 }),
+            //     radius: 150
+            // }).addTo(map);
+        });
+    } else if (ndvi === "cNDVI") {
+        cNDVIPoints = dataSubset.map((point, index) => {
+            return L.rectangle([
+                [point.latlng[0] - recHeight, point.latlng[1] - recWidth],
+                [point.latlng[0] + recHeight, point.latlng[1] + recWidth]
+            ], {
+                color: colorGradient((point.cNDVI - cNDVIRange[0]) / (cNDVIRange[1] - cNDVIRange[0]),
+                    { red: 217, green: 83, blue: 79 },
+                    { red: 240, green: 173, blue: 78 },
+                    { red: 92, green: 184, blue: 91 })
+            }).addTo(map);
+        });
+    }
+}
+
+function clearMap() {
+    for (let i = 0; i < mNDVIPoints.length; i++) {
+        map.removeLayer(mNDVIPoints[i]);
+    }
+    for (let i = 0; i < cNDVIPoints.length; i++) {
+        map.removeLayer(cNDVIPoints[i]);
+    }
+
+    map.setView(defaultView.latlng, defaultView.zoom);
+}
+
+function toggleNDVI() {
+    clearMap();
+    if (toggleButtonValue === "mNDVI") {
+        plotNDVI("cNDVI");
+        document.getElementById("toggleNDVI").innerHTML = "cNDVI";
+        toggleButtonValue = "cNDVI";
+    } else if (toggleButtonValue === "cNDVI") {
+        plotNDVI("mNDVI");
+        document.getElementById("toggleNDVI").innerHTML = "mNDVI";
+        toggleButtonValue = "mNDVI";
+    }
 }
 
 function colorGradient(fadeFraction, rgbColor1, rgbColor2, rgbColor3) {
