@@ -1,11 +1,14 @@
 var ndviValues;
 var dataSubset;
+var gridData = [];
 
-var dataSummary = { "mean": 0, "stdDev": 0 };
+var dataSummary = { "cMean": 0, "cStdDev": 0 };
 
 var defaultView = { "latlng": [], "zoom": 10 };
 var mNDVIRange = [Number.MAX_SAFE_INTEGER, Number.MIN_SAFE_INTEGER];
 var cNDVIRange = [Number.MAX_SAFE_INTEGER, Number.MIN_SAFE_INTEGER];
+var latRange = [Number.MAX_SAFE_INTEGER, Number.MIN_SAFE_INTEGER];
+var lngRange = [Number.MAX_SAFE_INTEGER, Number.MIN_SAFE_INTEGER];
 
 var map;
 var mNDVIPoints = [];
@@ -15,6 +18,7 @@ var toggleButtonValue = "mNDVI";
 
 const recWidth = 0.003;
 const recHeight = 0.002;
+const gridItemCount = 10000; // Square root must be whole number
 
 fetch('https://raw.githubusercontent.com/lamkevincw/choropleths/main/static/ndviValues.json')
     .then((response) => response.json())
@@ -50,7 +54,7 @@ function initializeMap() {
 function processData() {
     // Select data
     // 1 in 10 data points
-    dataSubset = ndviValues.filter((element, index) => { return index % 100 === 0 })
+    dataSubset = ndviValues.filter((element, index) => { return index % 10 === 0 })
 
     // Remove outliers
     let len = dataSubset.length;
@@ -76,68 +80,139 @@ function processData() {
     console.log("2 length: " + dataSubset.length)
     len = dataSubset.length;
     while (len--) {
-        dataSummary.mean += dataSubset[len].cNDVI;
+        dataSummary.cMean += dataSubset[len].cNDVI;
 
+        // Calculate ranges of NDVI values
         if (dataSubset[len].mNDVI > mNDVIRange[1]) {
             mNDVIRange[1] = dataSubset[len].mNDVI;
         } else if (dataSubset[len].mNDVI < mNDVIRange[0]) {
             mNDVIRange[0] = dataSubset[len].mNDVI;
         }
-        if (dataSubset[len].cNDVI > -500 && dataSubset[len].cNDVI < 500) {
-            if (dataSubset[len].cNDVI > cNDVIRange[1]) {
-                cNDVIRange[1] = dataSubset[len].cNDVI;
-                // console.log(len)
-            } else if (dataSubset[len].cNDVI < cNDVIRange[0]) {
-                cNDVIRange[0] = dataSubset[len].cNDVI;
-                // console.log(len)
-            }
+        if (dataSubset[len].cNDVI > cNDVIRange[1]) {
+            cNDVIRange[1] = dataSubset[len].cNDVI;
+            // console.log(len)
+        } else if (dataSubset[len].cNDVI < cNDVIRange[0]) {
+            cNDVIRange[0] = dataSubset[len].cNDVI;
+            // console.log(len)
+        }
+
+        // Calculate min and max for latitude and longitude
+        if (dataSubset[len].latlng[0] > latRange[1]) {
+            latRange[1] = dataSubset[len].latlng[0];
+        } else if (dataSubset[len].latlng[0] < latRange[0]) {
+            latRange[0] = dataSubset[len].latlng[0];
+        }
+        if (dataSubset[len].latlng[1] > lngRange[1]) {
+            lngRange[1] = dataSubset[len].latlng[1];
+        } else if (dataSubset[len].latlng[1] < lngRange[0]) {
+            lngRange[0] = dataSubset[len].latlng[1];
         }
     }
-    dataSummary.mean /= n;
+    dataSummary.cMean /= n;
     len = dataSubset.length;
     while (len--) {
-        dataSummary.stdDev += Math.pow((dataSubset[len].cNDVI - dataSummary.mean), 2)
+        dataSummary.cStdDev += Math.pow((dataSubset[len].cNDVI - dataSummary.cMean), 2)
     }
-    dataSummary.stdDev /= n;
-    dataSummary.stdDev = Math.sqrt(dataSummary.stdDev);
+    dataSummary.cStdDev /= n;
+    dataSummary.cStdDev = Math.sqrt(dataSummary.cStdDev);
     console.log(dataSummary)
 
+    // Reverse longitude due to negative values
+    // lngRange = lngRange.reverse();
+
     // Set default view
-    defaultView.latlng = ndviValues[0].latlng;
+    defaultView.latlng = [(latRange[0] + latRange[1]) / 2, (lngRange[0] + lngRange[1]) / 2];
     defaultView.zoom = 10;
+
+    // Create grid
+    let rectangleLat = (latRange[1] - latRange[0]) / Math.sqrt(gridItemCount);
+    let rectangleLng = (lngRange[1] - lngRange[0]) / Math.sqrt(gridItemCount);
+    let startPoint = [latRange[0] - rectangleLat / 100, lngRange[0] - rectangleLat / 100]; // Can be used to adjust starting point
+    let endPoint = [latRange[1] + rectangleLat / 100, lngRange[1] + rectangleLat / 100];
+    rectangleLat = (endPoint[0] - startPoint[0]) / Math.sqrt(gridItemCount);
+    rectangleLng = (endPoint[1] - startPoint[1]) / Math.sqrt(gridItemCount);
+    for (let i = 0; i < Math.sqrt(gridItemCount); i++) {
+        for (let j = 0; j < Math.sqrt(gridItemCount); j++) {
+            let gridRectangle = {
+                "bounds": [[startPoint[0] + rectangleLat * i, startPoint[1] + rectangleLng * j],
+                [startPoint[0] + rectangleLat * (i + 1), startPoint[1] + rectangleLng * (j + 1)]],
+                "mNDVIavg": 0,
+                "cNDVIavg": 0,
+                "numOfPoints": 0
+            };
+            gridData.push(gridRectangle);
+        }
+    }
+
+    for (let i = 0; i < gridData.length; i++) {
+        for (let j = 0; j < dataSubset.length; j++) {
+            if (dataSubset[j].latlng[0] > gridData[i].bounds[0][0] && dataSubset[j].latlng[0] < gridData[i].bounds[1][0] &&
+                dataSubset[j].latlng[1] > gridData[i].bounds[0][1] && dataSubset[j].latlng[1] < gridData[i].bounds[1][1]) {
+                gridData[i].numOfPoints++;
+                gridData[i].mNDVIavg += dataSubset[j].mNDVI;
+                gridData[i].cNDVIavg += dataSubset[j].cNDVI;
+            }
+        }
+        gridData[i].mNDVIavg /= gridData[i].numOfPoints;
+        gridData[i].cNDVIavg /= gridData[i].numOfPoints;
+    }
+    console.log(gridData);
 }
 
 function plotNDVI(ndvi) {
     if (ndvi === "mNDVI") {
-        mNDVIPoints = dataSubset.map((point, index) => {
-            return L.rectangle([
-                [point.latlng[0] - recHeight, point.latlng[1] - recWidth],
-                [point.latlng[0] + recHeight, point.latlng[1] + recWidth]
-            ], {
-                color: colorGradient((point.mNDVI - mNDVIRange[0]) / (mNDVIRange[1] - mNDVIRange[0]),
-                    { red: 217, green: 83, blue: 79 },
-                    { red: 240, green: 173, blue: 78 },
-                    { red: 92, green: 184, blue: 91 })
-            }).addTo(map);
-            // return L.circle(point.latlng, {
-            //     color: colorGradient((point.mNDVI - mNDVIRange[0]) / (mNDVIRange[1] - mNDVIRange[0]),
-            //         { red: 217, green: 83, blue: 79 },
-            //         { red: 240, green: 173, blue: 78 },
-            //         { red: 92, green: 184, blue: 91 }),
-            //     radius: 150
-            // }).addTo(map);
+        // mNDVIPoints = dataSubset.map((point, index) => {
+        //     // return L.rectangle([
+        //     //     [point.latlng[0] - recHeight, point.latlng[1] - recWidth],
+        //     //     [point.latlng[0] + recHeight, point.latlng[1] + recWidth]
+        //     // ], {
+        //     //     color: colorGradient((point.mNDVI - mNDVIRange[0]) / (mNDVIRange[1] - mNDVIRange[0]),
+        //     //         { red: 217, green: 83, blue: 79 },
+        //     //         { red: 240, green: 173, blue: 78 },
+        //     //         { red: 92, green: 184, blue: 91 })
+        //     // }).addTo(map);
+        //     return L.circle(point.latlng, {
+        //         color: colorGradient((point.mNDVI - mNDVIRange[0]) / (mNDVIRange[1] - mNDVIRange[0]),
+        //             { red: 217, green: 83, blue: 79 },
+        //             { red: 240, green: 173, blue: 78 },
+        //             { red: 92, green: 184, blue: 91 }),
+        //         radius: 15
+        //     }).addTo(map);
+        // });
+        mNDVIPoints = gridData.map((point, index) => {
+            return L.rectangle(
+                point.bounds,
+                {
+                    color: colorGradient((point.mNDVIavg - mNDVIRange[0]) / (mNDVIRange[1] - mNDVIRange[0]),
+                        { red: 217, green: 83, blue: 79 },
+                        { red: 240, green: 173, blue: 78 },
+                        { red: 92, green: 184, blue: 91 })
+                }
+            ).addTo(map);
         });
-    } else if (ndvi === "cNDVI") {
-        cNDVIPoints = dataSubset.map((point, index) => {
-            return L.rectangle([
-                [point.latlng[0] - recHeight, point.latlng[1] - recWidth],
-                [point.latlng[0] + recHeight, point.latlng[1] + recWidth]
-            ], {
-                color: colorGradient((point.cNDVI - cNDVIRange[0]) / (cNDVIRange[1] - cNDVIRange[0]),
-                    { red: 217, green: 83, blue: 79 },
-                    { red: 240, green: 173, blue: 78 },
-                    { red: 92, green: 184, blue: 91 })
-            }).addTo(map);
+    }
+    else if (ndvi === "cNDVI") {
+        // cNDVIPoints = dataSubset.map((point, index) => {
+        //     return L.rectangle([
+        //         [point.latlng[0] - recHeight, point.latlng[1] - recWidth],
+        //         [point.latlng[0] + recHeight, point.latlng[1] + recWidth]
+        //     ], {
+        //         color: colorGradient((point.cNDVI - cNDVIRange[0]) / (cNDVIRange[1] - cNDVIRange[0]),
+        //             { red: 217, green: 83, blue: 79 },
+        //             { red: 240, green: 173, blue: 78 },
+        //             { red: 92, green: 184, blue: 91 })
+        //     }).addTo(map);
+        // });
+        cNDVIPoints = gridData.map((point, index) => {
+            return L.rectangle(
+                point.bounds,
+                {
+                    color: colorGradient((point.cNDVIavg - cNDVIRange[0]) / (cNDVIRange[1] - cNDVIRange[0]),
+                        { red: 217, green: 83, blue: 79 },
+                        { red: 240, green: 173, blue: 78 },
+                        { red: 92, green: 184, blue: 91 })
+                }
+            ).addTo(map);
         });
     }
 }
