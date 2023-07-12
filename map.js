@@ -1,3 +1,5 @@
+// import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+
 var ndviValues;
 var dataSubset;
 var gridData = [];
@@ -131,11 +133,13 @@ function processData() {
     let endPoint = [latRange[1] + rectangleLat / 100, lngRange[1] + rectangleLat / 100];
     rectangleLat = (endPoint[0] - startPoint[0]) / Math.sqrt(gridItemCount);
     rectangleLng = (endPoint[1] - startPoint[1]) / Math.sqrt(gridItemCount);
+    let latMargin = rectangleLat / 50;
+    let lngMargin = rectangleLng / 50;
     for (let i = 0; i < Math.sqrt(gridItemCount); i++) {
         for (let j = 0; j < Math.sqrt(gridItemCount); j++) {
             let gridRectangle = {
                 "bounds": [[startPoint[0] + rectangleLat * i, startPoint[1] + rectangleLng * j],
-                [startPoint[0] + rectangleLat * (i + 1), startPoint[1] + rectangleLng * (j + 1)]],
+                [startPoint[0] + (rectangleLat * (i + 1) - latMargin), startPoint[1] + (rectangleLng * (j + 1) - lngMargin)]],
                 "mNDVIavg": 0,
                 "cNDVIavg": 0,
                 "numOfPoints": 0
@@ -157,6 +161,8 @@ function processData() {
         gridData[i].cNDVIavg /= gridData[i].numOfPoints;
     }
     console.log(gridData);
+
+    console.log(d3.interpolateTurbo(0.5))
 }
 
 function plotNDVI(ndvi) {
@@ -183,10 +189,11 @@ function plotNDVI(ndvi) {
             return L.rectangle(
                 point.bounds,
                 {
-                    color: colorGradient((point.mNDVIavg - mNDVIRange[0]) / (mNDVIRange[1] - mNDVIRange[0]),
-                        { red: 217, green: 83, blue: 79 },
-                        { red: 240, green: 173, blue: 78 },
-                        { red: 92, green: 184, blue: 91 })
+                    // color: colorGradient((point.mNDVIavg - mNDVIRange[0]) / (mNDVIRange[1] - mNDVIRange[0]),
+                    //     { red: 217, green: 83, blue: 79 },
+                    //     { red: 240, green: 173, blue: 78 },
+                    //     { red: 92, green: 184, blue: 91 })
+                    color: d3.interpolateTurbo((point.mNDVIavg - mNDVIRange[0]) / (mNDVIRange[1] - mNDVIRange[0]))
                 }
             ).addTo(map);
         });
@@ -207,10 +214,11 @@ function plotNDVI(ndvi) {
             return L.rectangle(
                 point.bounds,
                 {
-                    color: colorGradient((point.cNDVIavg - cNDVIRange[0]) / (cNDVIRange[1] - cNDVIRange[0]),
-                        { red: 217, green: 83, blue: 79 },
-                        { red: 240, green: 173, blue: 78 },
-                        { red: 92, green: 184, blue: 91 })
+                    // color: colorGradient((point.cNDVIavg - cNDVIRange[0]) / (cNDVIRange[1] - cNDVIRange[0]),
+                    //     { red: 217, green: 83, blue: 79 },
+                    //     { red: 240, green: 173, blue: 78 },
+                    //     { red: 92, green: 184, blue: 91 })
+                    color: d3.interpolateTurbo((point.cNDVIavg - cNDVIRange[0]) / (cNDVIRange[1] - cNDVIRange[0]))
                 }
             ).addTo(map);
         });
