@@ -45,11 +45,25 @@
             });
     }
 
+    function test() {
+        let cNDVI = ndviValues.map((element, index) => {
+            return element.cNDVI;
+        })
+        console.log(cNDVI)
+
+        let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(cNDVI));
+        let dlAnchorElem = document.getElementById('downloadAnchorElem');
+        dlAnchorElem.setAttribute("href", dataStr);
+        dlAnchorElem.setAttribute("download", "cNDVI.json");
+        dlAnchorElem.click();
+    }
+
     function processData() {
         // Select data
         // 1 in 10 data points
         // dataSubset = ndviValues.filter((element, index) => { return index % 10 === 0 })
-        dataSubset = ndviValues;
+        dataSubset = ndviValues.filter((element, index) => { return element.cNDVI > -100000 && element.cNDVI < 100000});
+        // dataSubset = ndviValues;
 
         // Remove outliers
         let len = dataSubset.length;
@@ -71,7 +85,7 @@
 
         // Get NDVI ranges and statistics
         console.log(cAvg - (3 * cStd))
-        dataSubset = dataSubset.filter((element, index) => { return element.cNDVI > cAvg - (3 * cStd) && element.cNDVI < cAvg + (3 * cStd) })
+        dataSubset = dataSubset.filter((element, index) => { return element.cNDVI > cAvg - (3 * cStd) && element.cNDVI < cAvg + (3 * cStd) });
         console.log("2 length: " + dataSubset.length)
         len = dataSubset.length;
         while (len--) {
@@ -156,6 +170,7 @@
         console.log(gridData);
 
         gridObject.data = gridData;
+        gridObject.summary = dataSummary;
         gridObject.defaultView = defaultView;
         gridObject.mNDVIRange = mNDVIRange;
         gridObject.cNDVIRange = cNDVIRange;
