@@ -1,4 +1,9 @@
 
+.colourForm {
+    margin: auto 0;
+    margin-left: 30px;
+}
+
 .controls {
     display: flex;
     height: 8%;

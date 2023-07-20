@@ -17,26 +17,44 @@ var mNDVIPoints = [];
 var cNDVIPoints = [];
 
 var toggleButtonValue = "mNDVI";
+var selectedColourScheme = "mNDVI";
 
 const recWidth = 0.003;
 const recHeight = 0.002;
 const gridItemCount = 10000; // Square root must be whole number
 
-fetch('https://raw.githubusercontent.com/lamkevincw/choropleths/main/static/ndviValues.json')
+const medianColours = ['#FFFFFF', '#CE7E45', '#DF923D', '#F1B555', '#FCD163', '#99B718', '#74A901',
+    '#66A000', '#529400', '#3E8601', '#207401', '#056201', '#004C00', '#023B01',
+    '#012E01', '#011D01', '#011301'];
+const covColours = ["#1d44ff", "#fbff1d", "#c4eb2a", "#4bed49", "#58c82a", "#087a07"]
+
+fetch('https://raw.githubusercontent.com/lamkevincw/choropleths/main/static/gridObject.json')
     .then((response) => response.json())
     .then((data) => {
-        var prop = data.map(function (item) { return JSON.parse(item["prop"]) });
-        ndviValues = prop.map(function (value) { return { "latlng": value[0].reverse(), "mNDVI": value[1][0], "cNDVI": value[1][1] } });
-        console.log(ndviValues)
+        console.log(data)
+
+        gridData = data.data;
+        defaultView = data.defaultView;
+        defaultView.zoom = 12;
+        // mNDVIRange = data.mNDVIRange;
+        // cNDVIRange = data.cNDVIRange;
+        mNDVIRange = [0.35, 0.65]; // Values from EE code
+        cNDVIRange = [25, 75]; // Values from EE code
+        latRange = data.latRange;
+        lngRange = data.lngRange;
 
         initialize();
     });
 
 function initialize() {
-    processData();
+    // Event listeners
+    document.getElementById("colourForm").addEventListener("submit", changeColourScheme);
+
+    // processData();
     initializeMap();
 
     plotNDVI(toggleButtonValue);
+    drawLegend();
 }
 
 function initializeMap() {
@@ -46,11 +64,6 @@ function initializeMap() {
         maxZoom: 19,
         attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(map);
-
-    // Add temp polygon
-    let test2 = L.polygon(dataSubset.map(function (x) { return x.latlng }))
-    console.log(dataSubset)
-    // test2.addTo(map)
 }
 
 function processData() {
@@ -165,26 +178,8 @@ function processData() {
     console.log(d3.interpolateTurbo(0.5))
 }
 
-function plotNDVI(ndvi) {
+function plotNDVI(ndvi, colour) {
     if (ndvi === "mNDVI") {
-        // mNDVIPoints = dataSubset.map((point, index) => {
-        //     // return L.rectangle([
-        //     //     [point.latlng[0] - recHeight, point.latlng[1] - recWidth],
-        //     //     [point.latlng[0] + recHeight, point.latlng[1] + recWidth]
-        //     // ], {
-        //     //     color: colorGradient((point.mNDVI - mNDVIRange[0]) / (mNDVIRange[1] - mNDVIRange[0]),
-        //     //         { red: 217, green: 83, blue: 79 },
-        //     //         { red: 240, green: 173, blue: 78 },
-        //     //         { red: 92, green: 184, blue: 91 })
-        //     // }).addTo(map);
-        //     return L.circle(point.latlng, {
-        //         color: colorGradient((point.mNDVI - mNDVIRange[0]) / (mNDVIRange[1] - mNDVIRange[0]),
-        //             { red: 217, green: 83, blue: 79 },
-        //             { red: 240, green: 173, blue: 78 },
-        //             { red: 92, green: 184, blue: 91 }),
-        //         radius: 15
-        //     }).addTo(map);
-        // });
         mNDVIPoints = gridData.map((point, index) => {
             return L.rectangle(
                 point.bounds,
@@ -193,23 +188,12 @@ function plotNDVI(ndvi) {
                     //     { red: 217, green: 83, blue: 79 },
                     //     { red: 240, green: 173, blue: 78 },
                     //     { red: 92, green: 184, blue: 91 })
-                    color: d3.interpolateTurbo((point.mNDVIavg - mNDVIRange[0]) / (mNDVIRange[1] - mNDVIRange[0]))
+                    color: getColours((point.mNDVIavg - mNDVIRange[0]) / (mNDVIRange[1] - mNDVIRange[0]))
                 }
             ).addTo(map);
         });
     }
     else if (ndvi === "cNDVI") {
-        // cNDVIPoints = dataSubset.map((point, index) => {
-        //     return L.rectangle([
-        //         [point.latlng[0] - recHeight, point.latlng[1] - recWidth],
-        //         [point.latlng[0] + recHeight, point.latlng[1] + recWidth]
-        //     ], {
-        //         color: colorGradient((point.cNDVI - cNDVIRange[0]) / (cNDVIRange[1] - cNDVIRange[0]),
-        //             { red: 217, green: 83, blue: 79 },
-        //             { red: 240, green: 173, blue: 78 },
-        //             { red: 92, green: 184, blue: 91 })
-        //     }).addTo(map);
-        // });
         cNDVIPoints = gridData.map((point, index) => {
             return L.rectangle(
                 point.bounds,
@@ -218,7 +202,7 @@ function plotNDVI(ndvi) {
                     //     { red: 217, green: 83, blue: 79 },
                     //     { red: 240, green: 173, blue: 78 },
                     //     { red: 92, green: 184, blue: 91 })
-                    color: d3.interpolateTurbo((point.cNDVIavg - cNDVIRange[0]) / (cNDVIRange[1] - cNDVIRange[0]))
+                    color: getColours((point.cNDVIavg - cNDVIRange[0]) / (cNDVIRange[1] - cNDVIRange[0]))
                 }
             ).addTo(map);
         });
@@ -234,47 +218,127 @@ function clearMap() {
     }
 
     map.setView(defaultView.latlng, defaultView.zoom);
+
+    // Clear legend
+    d3.select("#colourLegend").html("");
 }
 
 function toggleNDVI() {
     clearMap();
     if (toggleButtonValue === "mNDVI") {
-        plotNDVI("cNDVI");
+        // plotNDVI("cNDVI");
         document.getElementById("toggleNDVI").innerHTML = "cNDVI";
         toggleButtonValue = "cNDVI";
     } else if (toggleButtonValue === "cNDVI") {
-        plotNDVI("mNDVI");
+        // plotNDVI("mNDVI");
         document.getElementById("toggleNDVI").innerHTML = "mNDVI";
         toggleButtonValue = "mNDVI";
     }
+    plotNDVI(toggleButtonValue);
+    drawLegend()
 }
 
-function colorGradient(fadeFraction, rgbColor1, rgbColor2, rgbColor3) {
-    let color1 = rgbColor1;
-    let color2 = rgbColor2;
-    let fade = fadeFraction;
+function changeColourScheme(e) {
+    e.preventDefault();
+    // console.log(e)
 
-    // Do we have 3 colors for the gradient? Need to adjust the params.
-    if (rgbColor3) {
-        fade = fade * 2;
+    let formData = new FormData(e.target);
+    let formProps = Object.fromEntries(formData);
+    console.log(formProps)
 
-        // Find which interval to use and adjust the fade percentage
-        if (fade >= 1) {
-            fade -= 1;
-            color1 = rgbColor2;
-            color2 = rgbColor3;
-        }
+    selectedColourScheme = formProps.colourScheme;
+    clearMap();
+    plotNDVI(toggleButtonValue);
+}
+
+function getColours(fraction) {
+    switch (selectedColourScheme) {
+        case "turbo":
+            return d3.interpolateTurbo(fraction);
+            break;
+        case "viridis":
+            return d3.interpolateViridis(fraction);
+            break;
+        case "inferno":
+            return d3.interpolateInferno(fraction);
+            break;
+        case "mNDVI":
+            // console.log(medianColours.map((e, i) => {return i/(medianColours.length - 1)}))
+            return d3.scaleLinear()
+                .domain(medianColours.map((e, i) => { return i / (medianColours.length - 1) }))
+                .range(medianColours)(fraction);
+            break;
+        case "cNDVI":
+            return d3.scaleLinear()
+                .domain(covColours.map((e, i) => { return i / (covColours.length - 1) }))
+                .range(covColours)(fraction);
+            break;
+    }
+}
+function drawLegend() {
+    let svg = d3.select("#colourLegend");
+
+    let xScale, xAxis, colorScale;
+    switch (toggleButtonValue) {
+        case "mNDVI":
+            /*** Draw X-Axis ***/
+            xScale = d3.scaleLinear()
+                .domain([0, 1])
+                .range([0, 470]);
+
+            xAxis = d3.axisBottom(d3.scaleLinear()
+                .domain(mNDVIRange)
+                .range([30, 470]));
+
+            svg.append("g")
+                .attr("transform", "translate(0,80)")
+                .call(xAxis);
+
+            /*** Create color scale ***/
+            colorScale = d3.scaleLinear()
+                .domain(medianColours.map((e, i) => { return i / (medianColours.length - 1) }))
+                .range(medianColours);
+
+            /*** Draw data points using color scale ***/
+            svg.selectAll("circle")
+                .data(medianColours.map((e, i) => { return i / (medianColours.length - 1) }))
+                .enter()
+                .append("circle")
+                .attr("cx", (d, i) => xScale(d))
+                .attr("cy", 60)
+                .attr("r", 13)
+                .attr("fill", (d) => colorScale(d));
+            break;
+        case "cNDVI":
+            /*** Draw X-Axis ***/
+            xScale = d3.scaleLinear()
+                .domain([0, 1])
+                .range([30, 470]);
+
+            xAxis = d3.axisBottom(d3.scaleLinear()
+                .domain(cNDVIRange)
+                .range([30, 470]));
+
+            svg.append("g")
+                .attr("transform", "translate(0,80)")
+                .call(xAxis);
+
+            /*** Create color scale ***/
+            colorScale = d3.scaleLinear()
+                .domain(covColours.map((e, i) => { return i / (covColours.length - 1) }))
+                .range(covColours);
+
+            /*** Draw data points using color scale ***/
+
+            svg.selectAll("circle")
+                .data(covColours.map((e, i) => { return i / (covColours.length - 1) }))
+                .enter()
+                .append("circle")
+                .attr("cx", (d, i) => xScale(d))
+                .attr("cy", 60)
+                .attr("r", 13)
+                .attr("fill", (d) => colorScale(d));
+            break;
     }
 
-    let diffRed = color2.red - color1.red;
-    let diffGreen = color2.green - color1.green;
-    let diffBlue = color2.blue - color1.blue;
-
-    let gradient = {
-        red: parseInt(Math.floor(color1.red + (diffRed * fade)), 10),
-        green: parseInt(Math.floor(color1.green + (diffGreen * fade)), 10),
-        blue: parseInt(Math.floor(color1.blue + (diffBlue * fade)), 10),
-    };
-
-    return 'rgb(' + gradient.red + ',' + gradient.green + ',' + gradient.blue + ')';
 }

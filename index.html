@@ -9,8 +9,21 @@
 <body>
     <p class="loading">Loading</p>
     <div class="controls">
-        <p style="float: left; margin-right: 10px;">Toggle NDVI Layer: </p>
+        <p style="float: left; margin-right: 5px;">Toggle NDVI Layer: </p>
         <button id="toggleNDVI" onclick=toggleNDVI() style="float: left;">mNDVI</button>
+
+        <form id="colourForm" class="colourForm">
+            <select name="colourScheme">
+                <option value="mNDVI">Median NDVI Default</option>
+                <option value="cNDVI">Variance NDVI Default</option>
+                <option value="turbo">Turbo</option>
+                <option value="viridis">Viridis</option>
+                <option value="inferno">Inferno</option>
+            </select>
+            <button type="submit">Change Colour</button>
+        </form>
+
+        <svg id="colourLegend" width="500"></svg>
     </div>
     <div id="map"></div>
 </body>
@@ -18,6 +31,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script src="https://unpkg.com/d3fc@14.0.27/build/d3fc.js"></script>
 <script src="map.js"></script>
 
 </html>
