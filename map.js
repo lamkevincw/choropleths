@@ -229,10 +229,12 @@ function toggleNDVI() {
         // plotNDVI("cNDVI");
         document.getElementById("toggleNDVI").innerHTML = "cNDVI";
         toggleButtonValue = "cNDVI";
+        selectedColourScheme = "cNDVI";
     } else if (toggleButtonValue === "cNDVI") {
         // plotNDVI("mNDVI");
         document.getElementById("toggleNDVI").innerHTML = "mNDVI";
         toggleButtonValue = "mNDVI";
+        selectedColourScheme = "mNDVI";
     }
     plotNDVI(toggleButtonValue);
     drawLegend()
