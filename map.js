@@ -249,6 +249,7 @@ function changeColourScheme(e) {
     selectedColourScheme = formProps.colourScheme;
     clearMap();
     plotNDVI(toggleButtonValue);
+    drawLegend();
 }
 
 function getColours(fraction) {
