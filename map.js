@@ -237,7 +237,8 @@ function toggleNDVI() {
         selectedColourScheme = "mNDVI";
     }
     plotNDVI(toggleButtonValue);
-    drawLegend()
+    drawLegend();
+    document.getElementById("colourSchemeSelect").value = selectedColourScheme;
 }
 
 function changeColourScheme(e) {
